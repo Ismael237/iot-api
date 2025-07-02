@@ -1,0 +1,260 @@
+// Prisma schema généré à partir de schema.sql
+// Voir devbook.md pour la structure complète
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  user
+}
+
+enum DeviceTypeEnum {
+  arduino_uno
+  arduino_nano
+  esp32
+  esp8266
+  raspberry_pi
+  sensor_module
+  actuator_module
+  gateway
+}
+
+enum ComponentCategory {
+  sensor
+  actuator
+}
+
+enum ConnStatus {
+  unknown
+  online
+  offline
+  error
+}
+
+enum ComparisonOperator {
+  gt
+  lt
+  gte
+  lte
+  eq
+  neq
+}
+
+enum AutomationActionType {
+  create_alert
+  trigger_actuator
+}
+
+model User {
+  userId        Int      @id @default(autoincrement())
+  email         String   @unique
+  passwordHash  String
+  firstName     String?
+  lastName      String?
+  role          UserRole @default(user)
+  isActive      Boolean  @default(true)
+  lastLogin     DateTime?
+  loginCount    Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  devices       IoTDevice[] @relation("UserDevices")
+  componentTypes ComponentType[] @relation("UserComponentTypes")
+  componentDeployments ComponentDeployment[] @relation("UserComponentDeployments")
+  zones         Zone[]   @relation("UserZones")
+  refreshTokens RefreshToken[]
+  tokenBlacklist TokenBlacklist[]
+  actuatorCommands ActuatorCommand[] @relation("UserActuatorCommands")
+  alerts        Alert[]  @relation("UserAlerts")
+  automationRules AutomationRule[] @relation("UserAutomationRules")
+}
+
+model IoTDevice {
+  deviceId      Int      @id @default(autoincrement())
+  identifier    String   @unique
+  deviceType    DeviceTypeEnum
+  model         String?
+  metadata      Json?
+  ipAddress     String?
+  port          Int?
+  active        Boolean  @default(true)
+  lastSeen      DateTime?
+  createdBy     Int?
+  creator       User?    @relation("UserDevices", fields: [createdBy], references: [userId])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deployments   ComponentDeployment[]
+}
+
+model ComponentType {
+  componentTypeId Int      @id @default(autoincrement())
+  name           String
+  identifier     String   @unique
+  category       ComponentCategory
+  unit           String?
+  description    String?
+  createdBy      Int?
+  creator        User?    @relation("UserComponentTypes", fields: [createdBy], references: [userId])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deployments    ComponentDeployment[]
+}
+
+model ComponentDeployment {
+  deploymentId      Int      @id @default(autoincrement())
+  componentTypeId   Int
+  deviceId          Int
+  active            Boolean  @default(true)
+  lastInteraction   DateTime?
+  connectionStatus  ConnStatus @default(unknown)
+  lastValue         Float?
+  lastValueTs       DateTime?
+  createdBy         Int?
+  creator           User?    @relation("UserComponentDeployments", fields: [createdBy], references: [userId])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  componentType     ComponentType @relation(fields: [componentTypeId], references: [componentTypeId])
+  device            IoTDevice     @relation(fields: [deviceId], references: [deviceId])
+  pinConnections    ComponentPinConnection[]
+  zoneAssignments   ZoneComponentDeployment[]
+  sensorReadings    SensorReading[]
+  actuatorCommands  ActuatorCommand[]
+  automationRulesSensor AutomationRule[] @relation("SensorDeploymentRules")
+  automationRulesTarget AutomationRule[] @relation("TargetDeploymentRules")
+}
+
+model ComponentPinConnection {
+  pinConnId      Int      @id @default(autoincrement())
+  deploymentId   Int
+  pinIdentifier  String
+  pinFunction    String
+  deployment     ComponentDeployment @relation(fields: [deploymentId], references: [deploymentId])
+
+  @@unique([deploymentId, pinIdentifier])
+}
+
+model Zone {
+  zoneId        Int      @id @default(autoincrement())
+  parentZoneId  Int?
+  name          String
+  description   String?
+  metadata      Json?
+  createdBy     Int?
+  creator       User?    @relation("UserZones", fields: [createdBy], references: [userId])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  parentZone    Zone?    @relation("ZoneParent", fields: [parentZoneId], references: [zoneId])
+  subZones      Zone[]   @relation("ZoneParent")
+  componentAssignments ZoneComponentDeployment[]
+}
+
+model ZoneComponentDeployment {
+  zcdId         Int      @id @default(autoincrement())
+  zoneId        Int
+  deploymentId  Int
+  assignedAt    DateTime @default(now())
+  assignedBy    Int?
+  assigner      User?    @relation(fields: [assignedBy], references: [userId])
+  zone          Zone     @relation(fields: [zoneId], references: [zoneId])
+  deployment    ComponentDeployment @relation(fields: [deploymentId], references: [deploymentId])
+
+  @@unique([zoneId, deploymentId])
+}
+
+model SensorReading {
+  readingId     BigInt   @id @default(autoincrement())
+  deploymentId  Int
+  value         Float
+  unit          String?
+  timestamp     DateTime @default(now())
+  deployment    ComponentDeployment @relation(fields: [deploymentId], references: [deploymentId])
+
+  @@index([deploymentId, timestamp(sort: Desc)])
+}
+
+model ActuatorCommand {
+  commandId     BigInt   @id @default(autoincrement())
+  deploymentId  Int
+  command       String
+  parameters    Json?
+  issuedBy      Int?
+  issuer        User?    @relation("UserActuatorCommands", fields: [issuedBy], references: [userId])
+  timestamp     DateTime @default(now())
+  deployment    ComponentDeployment @relation(fields: [deploymentId], references: [deploymentId])
+
+  @@index([deploymentId, timestamp(sort: Desc)])
+}
+
+model RefreshToken {
+  tokenId      Int      @id @default(autoincrement())
+  userId       Int
+  tokenHash    String   @unique
+  deviceInfo   String?
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime?
+  user         User     @relation(fields: [userId], references: [userId])
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+}
+
+model TokenBlacklist {
+  blacklistId  Int      @id @default(autoincrement())
+  tokenJti     String   @unique
+  tokenType    String
+  userId       Int
+  expiresAt    DateTime
+  revokedAt    DateTime @default(now())
+  revokedBy    Int?
+  revoker      User?    @relation(fields: [revokedBy], references: [userId])
+  reason       String?
+  user         User     @relation(fields: [userId], references: [userId])
+
+  @@index([tokenJti])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Alert {
+  alertId      Int      @id @default(autoincrement())
+  title        String
+  message      String?
+  severity     String   @default("info")
+  createdBy    Int?
+  creator      User?    @relation("UserAlerts", fields: [createdBy], references: [userId])
+  createdAt    DateTime @default(now())
+}
+
+model AutomationRule {
+  ruleId              Int      @id @default(autoincrement())
+  name                String
+  description         String?
+  sensorDeploymentId  Int
+  operator            ComparisonOperator
+  thresholdValue      Float
+  actionType          AutomationActionType
+  alertTitle          String?
+  alertMessage        String?
+  alertSeverity       String? @default("warning")
+  targetDeploymentId  Int?
+  actuatorCommand     String?
+  actuatorParameters  Json?
+  isActive            Boolean  @default(true)
+  cooldownMinutes     Int      @default(5)
+  lastTriggeredAt     DateTime?
+  createdBy           Int?
+  creator             User?    @relation("UserAutomationRules", fields: [createdBy], references: [userId])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  sensorDeployment    ComponentDeployment @relation("SensorDeploymentRules", fields: [sensorDeploymentId], references: [deploymentId])
+  targetDeployment    ComponentDeployment? @relation("TargetDeploymentRules", fields: [targetDeploymentId], references: [deploymentId])
+} 

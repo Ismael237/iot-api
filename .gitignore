@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+
+# Prisma
+prisma/*.db
+prisma/migrations/
+.env
+.env.*
+!.env.example
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# IDE / Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temp files
+temp/
+tmp/
+.tmp/
+
+# Debug
+.pnpm-debug.log
+
+# Production
+.env.production
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Bundle analysis
+stats.html

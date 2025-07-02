@@ -1,0 +1,1 @@
+console.log('Dev script placeholder. Utiliser pnpm dev pour lancer le serveur en mode développement.'); 

@@ -1,0 +1,1 @@
+console.log('Script de création admin placeholder. Implémenter la logique de création d\'un admin ici.'); 
