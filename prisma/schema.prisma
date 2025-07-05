@@ -2,7 +2,8 @@
 // Voir devbook.md pour la structure complète
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -69,10 +70,12 @@ model User {
   componentDeployments ComponentDeployment[] @relation("UserComponentDeployments")
   zones         Zone[]   @relation("UserZones")
   refreshTokens RefreshToken[]
-  tokenBlacklist TokenBlacklist[]
-  actuatorCommands ActuatorCommand[] @relation("UserActuatorCommands")
+  tokenBlacklist    TokenBlacklist[] @relation("TokenBlacklistUser")
+  actuatorCommands  ActuatorCommand[] @relation("UserActuatorCommands")
   alerts        Alert[]  @relation("UserAlerts")
   automationRules AutomationRule[] @relation("UserAutomationRules")
+  revokedTokens   TokenBlacklist[] @relation("TokenBlacklistRevoker")
+  assignedComponents ZoneComponentDeployment[] @relation("ZoneComponentDeploymentAssigner")
 }
 
 model IoTDevice {
@@ -160,7 +163,7 @@ model ZoneComponentDeployment {
   deploymentId  Int
   assignedAt    DateTime @default(now())
   assignedBy    Int?
-  assigner      User?    @relation(fields: [assignedBy], references: [userId])
+  assigner      User?    @relation("ZoneComponentDeploymentAssigner", fields: [assignedBy], references: [userId])
   zone          Zone     @relation(fields: [zoneId], references: [zoneId])
   deployment    ComponentDeployment @relation(fields: [deploymentId], references: [deploymentId])
 
@@ -215,9 +218,9 @@ model TokenBlacklist {
   expiresAt    DateTime
   revokedAt    DateTime @default(now())
   revokedBy    Int?
-  revoker      User?    @relation(fields: [revokedBy], references: [userId])
+  revoker      User?    @relation("TokenBlacklistRevoker", fields: [revokedBy], references: [userId])
   reason       String?
-  user         User     @relation(fields: [userId], references: [userId])
+  user         User     @relation("TokenBlacklistUser", fields: [userId], references: [userId])
 
   @@index([tokenJti])
   @@index([userId])

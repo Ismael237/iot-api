@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: iot_db
+    restart: always
+    environment:
+      POSTGRES_DB: iot_api
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - iot_db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    container_name: iot_mqtt_broker
+    restart: always
+    ports:
+      - "1883:1883" # MQTT default port
+      - "9001:9001" # MQTT over WebSockets
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+      - ./mosquitto/:/mosquitto/config/ # Custom config (optional, create if needed)
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: iot_api
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://user:password@db:5432/iot_api?schema=public
+      MQTT_BROKER_URL: mqtt://mqtt:1883
+      JWT_SECRET: your_jwt_secret_key_at_least_32_chars_long
+      JWT_ACCESS_EXPIRES: 30m
+      JWT_REFRESH_EXPIRES: 7d
+      NODE_ENV: development
+      PORT: 3000
+      LOG_LEVEL: info
+      AUTOMATION_INTERVAL: 10000
+      CORS_ORIGIN: "*" # Adjust in production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - mqtt
+    volumes:
+      - .:/app
+      - /app/node_modules # Prevents host node_modules from overwriting container's
+
+volumes:
+  iot_db_data:
+  mosquitto_data:
+  mosquitto_log: 

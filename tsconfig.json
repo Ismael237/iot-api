@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "CommonJS",
+    "module": "ESNext",
     "lib": ["ES2020"],
     "outDir": "dist",
     "rootDir": "src",
@@ -9,10 +9,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "types": ["node"]
+    "moduleResolution": "Node",
+    "resolveJsonModule": true
   },
-  "include": ["src", "prisma/seed.ts"],
+  "include": ["src"],
   "exclude": ["node_modules", "dist"]
 } 

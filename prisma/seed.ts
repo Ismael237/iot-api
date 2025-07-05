@@ -147,26 +147,33 @@ async function main() {
   }
 
   // Création d'une zone principale et d'une sous-zone
-  const zonePrincipale = await prisma.zone.upsert({
-    where: { name: 'Bâtiment principal' },
-    update: {},
-    create: {
-      name: 'Bâtiment principal',
-      description: 'Zone principale du bâtiment',
-      metadata: { location: 'Grange', floor: 1 },
-      createdBy: admin.userId,
-    },
+  let zonePrincipale = await prisma.zone.findFirst({
+    where: { name: 'Bâtiment principal' }
   });
-  const zoneElevage = await prisma.zone.upsert({
-    where: { name: 'Zone élevage' },
-    update: {},
-    create: {
-      name: 'Zone élevage',
-      description: 'Zone dédiée à l\'élevage',
-      parentZoneId: zonePrincipale.zoneId,
-      createdBy: admin.userId,
-    },
+  if (!zonePrincipale) {
+    zonePrincipale = await prisma.zone.create({
+      data: {
+        name: 'Bâtiment principal',
+        description: 'Zone principale du bâtiment',
+        metadata: { location: 'Grange', floor: 1 },
+        createdBy: admin.userId,
+      },
+    });
+  }
+
+  let zoneElevage = await prisma.zone.findFirst({
+    where: { name: 'Zone élevage' }
   });
+  if (!zoneElevage) {
+    zoneElevage = await prisma.zone.create({
+      data: {
+        name: 'Zone élevage',
+        description: 'Zone dédiée à l\'élevage',
+        parentZoneId: zonePrincipale.zoneId,
+        createdBy: admin.userId,
+      },
+    });
+  }
 
   // Assignation des déploiements à la zone principale
   for (const dep of Object.values(deployments)) {
