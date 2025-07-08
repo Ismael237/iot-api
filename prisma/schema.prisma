@@ -145,7 +145,7 @@ model ComponentPinConnection {
 model Zone {
   zoneId        Int      @id @default(autoincrement())
   parentZoneId  Int?
-  name          String
+  name          String   @unique
   description   String?
   metadata      Json?
   createdBy     Int?

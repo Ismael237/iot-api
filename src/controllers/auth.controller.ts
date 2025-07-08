@@ -5,6 +5,7 @@ import { createUserSchema } from '../schemas/user.schema';
 import { ZodError } from 'zod';
 import config from '../config';
 import ms from 'ms';
+import { authenticate, refreshToken } from '../middleware/auth.middleware';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -63,8 +64,13 @@ export async function authController(app: FastifyInstance) {
     }
   });
 
-  // Refresh access token
+  // Refresh access token using middleware
   app.post('/api/v1/auth/refresh', async (req: FastifyRequest, reply: FastifyReply) => {
+    await refreshToken(req, reply);
+  });
+
+  // Alternative refresh endpoint using service directly
+  app.post('/api/v1/auth/refresh-service', async (req: FastifyRequest, reply: FastifyReply) => {
     const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken) {
@@ -85,45 +91,75 @@ export async function authController(app: FastifyInstance) {
   });
 
   // User logout
-  app.post('/api/v1/auth/logout', { onRequest: [app.authenticate] }, async (req: FastifyRequest, reply: FastifyReply) => {
-    const userId = req.user.userId;
-    const accessTokenJti = req.user.jti;
-    const refreshToken = req.cookies.refreshToken;
-
-    if (!accessTokenJti || !refreshToken) {
-      reply.code(400).send({ message: 'Tokens missing for logout' });
-      return;
-    }
-
-    try {
-      await authService.logout(userId, req.raw.headers.authorization?.split(' ')[1] as string, refreshToken); // Pass the actual access token
-      reply.clearCookie('refreshToken', { path: '/api/v1/auth/refresh' });
-      reply.send({ message: 'Logged out successfully' });
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        reply.code(500).send({ message: 'Error during logout', error: error.message });
-      } else {
-        reply.code(500).send({ message: 'An unknown error occurred during logout' });
-      }
-    }
-  });
-
-  // Get current user profile
-  app.get('/api/v1/auth/me', { onRequest: [app.authenticate] }, async (req: FastifyRequest, reply: FastifyReply) => {
-    try {
+  app.post('/api/v1/auth/logout', 
+    { 
+      onRequest: [authenticate] 
+    }, 
+    async (req: FastifyRequest, reply: FastifyReply) => {
       const userId = req.user.userId;
-      const user = await authService.getUserProfile(userId);
-      if (!user) {
-        reply.code(404).send({ message: 'User not found' });
+      const accessTokenJti = req.user.jti;
+      const refreshToken = req.cookies.refreshToken;
+
+      if (!accessTokenJti || !refreshToken) {
+        reply.code(400).send({ message: 'Tokens missing for logout' });
         return;
       }
-      reply.send({ id: user.userId, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role });
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        reply.code(500).send({ message: 'Error fetching user profile', error: error.message });
-      } else {
-        reply.code(500).send({ message: 'An unknown error occurred while fetching user profile' });
+
+      try {
+        await authService.logout(userId, req.raw.headers.authorization?.split(' ')[1] as string, refreshToken);
+        reply.clearCookie('refreshToken', { path: '/api/v1/auth/refresh' });
+        reply.send({ message: 'Logged out successfully' });
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          reply.code(500).send({ message: 'Error during logout', error: error.message });
+        } else {
+          reply.code(500).send({ message: 'An unknown error occurred during logout' });
+        }
       }
     }
-  });
+  );
+
+  // Get current user profile
+  app.get('/api/v1/auth/me', 
+    { 
+      onRequest: [authenticate] 
+    }, 
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const userId = req.user.userId;
+        const user = await authService.getUserProfile(userId);
+        if (!user) {
+          reply.code(404).send({ message: 'User not found' });
+          return;
+        }
+        reply.send({ id: user.userId, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role });
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          reply.code(500).send({ message: 'Error fetching user profile', error: error.message });
+        } else {
+          reply.code(500).send({ message: 'An unknown error occurred while fetching user profile' });
+        }
+      }
+    }
+  );
+
+  // Validate token endpoint (optional authentication)
+  app.get('/api/v1/auth/validate', 
+    { 
+      onRequest: [authenticate] 
+    }, 
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      try {
+        reply.send({ 
+          valid: true, 
+          user: { 
+            id: req.user.userId, 
+            role: req.user.role 
+          } 
+        });
+      } catch (error: unknown) {
+        reply.code(401).send({ valid: false, message: 'Invalid token' });
+      }
+    }
+  );
 } 

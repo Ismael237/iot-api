@@ -6,4 +6,10 @@ export function validate<T>(schema: ZodSchema<T>, data: unknown): T {
     throw result.error;
   }
   return result.data;
-} 
+}
+
+export function stringifyBigInts(obj: any): any {
+  return JSON.parse(
+    JSON.stringify(obj, (_, v) => typeof v === 'bigint' ? v.toString() : v)
+  );
+}

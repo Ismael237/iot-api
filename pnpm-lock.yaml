@@ -35,6 +35,9 @@ importers:
       mqtt:
         specifier: ^5.0.0
         version: 5.13.1
+      ms:
+        specifier: ^2.1.3
+        version: 2.1.3
       zod:
         specifier: ^3.22.2
         version: 3.25.67
